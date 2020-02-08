@@ -1,0 +1,535 @@
+﻿<!DOCTYPE html>
+<link rel="stylesheet" href="GameFormat.css" />
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta charset="utf-8">
+    <style>
+        canvas {
+            background-image: url("spacebackground.jpg");
+            background-size: cover;
+        }
+    </style>
+    <title>Galactic Defender</title>
+</head>
+<body onload="startGame()">
+    <script>
+        var playerCharacter;
+        var enemyCommanders;
+        var enemyFightersRow1;
+        var enemyFightersRow2;
+        var firstBoss;
+        var finalBoss;
+        var bossHits = 0;
+        var reloadCalled = false;
+        var enemyCommSpeed = -2;
+        var enemyRow1Speed = 2;
+        var enemyRow2Speed = -2;
+        var bossSpeed = 0;
+        var score = 0;
+        var scoreCounter;
+        var roundNumber = 1;
+        var playerBullets = [];
+        var enemyBullets = [];
+        var bossBullets = [];
+        var playerShot;
+        var enemyDeath;
+        var bossEntry;
+        var bossEntering = false;
+        var bossDeath;
+        var thirdRound = false;
+        var finalRound = false;
+        var lives;
+        var extraLife = false;
+        var extraLifeInterval = 1;
+        var isHolding = false;
+        var canShoot = true;
+        var enemyCanShoot = false;
+        var attacker;
+        var beenShot = false;
+
+        function startGame() {
+            myGameArea.start();
+            playerCharacter = new component(100, 100, "spaceship.pod_.1.green_.png", ((screen.width) / 2) - 30, 640, "", "");
+            enemyCommanders = [new component(80, 80, "redfighter0006.png", 590, 10, "", ""),
+                new component(80, 80, "redfighter0006.png", 690, 10, "", ""),
+                new component(80, 80, "redfighter0006.png", 790, 10, "", ""),
+                new component(80, 80, "redfighter0006.png", 890, 10, "", "")];
+            enemyCommanders.forEach(function (enemy) {
+                enemy.sound = new sound("enemy-death.mp3");
+            })
+            enemyFightersRow1 = [new component(55, 55, "mship1.png", 530, 100, "", ""),
+                new component(55, 55, "mship1.png", 595, 100, "", ""),
+                new component(55, 55, "mship1.png", 660, 100, "", ""),
+                new component(55, 55, "mship1.png", 725, 100, "", ""),
+                new component(55, 55, "mship1.png", 790, 100, "", ""),
+                new component(55, 55, "mship1.png", 855, 100, "", ""),
+                new component(55, 55, "mship1.png", 920, 100, "", ""),
+                new component(55, 55, "mship1.png", 985, 100, "", "")];
+            enemyFightersRow1.forEach(function (enemy) {
+                enemy.sound = new sound("enemy-death.mp3");
+            })
+            enemyFightersRow2 = [new component(55, 55, "mship1.png", 530, 160, "", ""),
+            new component(55, 55, "mship1.png", 595, 160, "", ""),
+            new component(55, 55, "mship1.png", 660, 160, "", ""),
+            new component(55, 55, "mship1.png", 725, 160, "", ""),
+            new component(55, 55, "mship1.png", 790, 160, "", ""),
+            new component(55, 55, "mship1.png", 855, 160, "", ""),
+            new component(55, 55, "mship1.png", 920, 160, "", ""),
+                new component(55, 55, "mship1.png", 985, 160, "", "")];
+            enemyFightersRow2.forEach(function (enemy) {
+                enemy.sound = new sound("enemy-death.mp3");
+            })
+            setTimeout(enableEnemyShoot, 3000);
+            firstBoss = new component(300, 300, "shship.png", ((screen.width) / 2) - 150, -310, "", "");
+            finalBoss = new component(300, 300, "ELxFZ.png", ((screen.width) / 2) - 150, -310, "", "");
+            firstBoss.active = false;
+            finalBoss.active = false;
+            playerShot = new sound("player-shot.mp3");
+            playerDeath = new sound("player-death.mp3");
+            enemyDeath = new sound("enemy-death.mp3");
+            bossEntry = new sound("boss-entry.wav");
+            bossDeath = new sound("boss-death.wav");
+            lives = [new component(55, 55, "spaceship.pod_.1.red_.png", 5, 690, "", ""),
+                new component(55, 55, "spaceship.pod_.1.red_.png", 65, 690, "", ""),
+                new component(55, 55, "spaceship.pod_.1.red_.png", 125, 690, "", "")];
+            scoreCounter = new component(0, 0, "", 10, 50, "Score: 0", "30px Arial", "white");
+        }
+
+        var myGameArea = {
+            canvas: document.createElement("canvas"),
+            start: function () {
+                canvas = document.getElementById("canvas");
+                this.canvas.width = screen.width;
+                this.canvas.height = screen.height;
+                this.context = this.canvas.getContext("2d");
+                document.body.insertBefore(this.canvas, document.body.childNodes[0]);
+                this.interval = setInterval(updateGameArea, 20);
+                window.addEventListener('keydown', function (e) {
+                    myGameArea.keys = (myGameArea.keys || []);
+                    myGameArea.keys[e.keyCode] = true;
+                })
+                window.addEventListener('keyup', function (e) {
+                    myGameArea.keys[e.keyCode] = false;
+                })
+                window.addEventListener('scroll', noscroll);
+            },
+            clear: function () {
+                this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
+            },
+            stop: function () {
+                clearInterval(this.interval);
+            }
+        }
+
+        function component(width, height, image, x, y, text, font, color) {
+            this.active = true;
+            if (image != "") {
+                this.image = new Image();
+                this.image.src = image;
+            }
+            this.width = width;
+            this.height = height;
+            this.speedX = 0;
+            this.speedY = 0;
+            this.x = x;
+            this.y = y;
+            this.text = text;
+            this.color = color;
+            this.font = font;
+            this.hitOnce = false;
+            this.update = function () {
+                ctx = myGameArea.context;
+                if (this.font != "") {
+                    ctx.font = this.font;
+                    ctx.fillStyle = this.color;
+                    ctx.fillText(this.text, this.x, this.y);
+                }
+                else {
+                    ctx.drawImage(this.image, this.x, this.y, this.width, this.height);
+                }
+            }
+            this.newPos = function () {
+                    this.x += this.speedX;
+                    this.y += this.speedY;
+            }
+            this.getHit = function (otherobj) {
+                var myleft = this.x;
+                var myright = this.x + (this.width);
+                var mytop = this.y;
+                var mybottom = this.y + (this.height); 
+                var otherleft = otherobj.x;
+                var otherright = otherobj.x + (otherobj.width);
+                var othertop = otherobj.y;
+                var otherbottom = otherobj.y + (otherobj.height);
+                var hit = true;
+                if ((mybottom < othertop) ||
+                    (mytop > otherbottom) ||
+                    (myright < otherleft) ||
+                    (myleft > otherright)) {
+                    hit = false;
+                }
+                return hit;
+            }
+        }
+
+        function sound(src) {
+            this.sound = document.createElement("audio");
+            this.sound.src = src;
+            this.sound.setAttribute("preload", "auto");
+            this.sound.setAttribute("controls", "none");
+            this.sound.style.display = "none";
+            document.body.appendChild(this.sound);
+            this.play = function () {
+                this.sound.play();
+            }
+            this.stop = function () {
+                this.sound.pause();
+            }
+        }
+
+        function updateGameArea() {
+            myGameArea.clear();
+            if (!(lives.length)) {
+                ctx = myGameArea.context;
+                ctx.font = "100px Chiller";
+                ctx.fillStyle = "chartreuse";
+                ctx.fillText("GAME OVER", ((screen.width) / 3) + 60, ((screen.height) / 2));
+                myGameArea.stop();
+            }
+            scoreCounter.update();
+            if (!extraLife && score >= (50000 * extraLifeInterval) && lives.length < 3) {
+                extraLife = true;
+                extraLifeInterval += 1;
+            }
+            if (extraLife) {
+                lives.push(new component(55, 55, "spaceship.pod_.1.red_.png", (60*lives.length)+5, 690, "", ""));
+                extraLife = false;
+            }
+            if (!beenShot) {
+                playerCharacter.speedX = 0;
+                playerCharacter.speedY = 0;
+                if (myGameArea.keys && myGameArea.keys[37] && playerCharacter.x >= 200) {
+                    playerCharacter.speedX = -5;
+                }
+                if (myGameArea.keys && myGameArea.keys[39] && playerCharacter.x <= (screen.width - 300)) {
+                    playerCharacter.speedX = 5;
+                }
+                playerCharacter.newPos();
+                playerCharacter.update();
+            }
+            if (firstBoss.y < 10 && thirdRound) {
+                bossEntry.play();
+                bossEntering = true;
+                firstBoss.speedY = 1;
+                bossSpeed = 0;
+            }
+            else if (firstBoss.y == 10 && firstBoss.x == ((screen.width) / 2) - 150 && bossEntering) {
+                firstBoss.speedY = 0;
+                bossSpeed = -4;
+                bossEntering = false;
+            }
+            if (firstBoss.x <= 300 || firstBoss.x >= 900) {
+                bossSpeed = -bossSpeed;
+            }
+            if (finalBoss.y < 10 && finalRound) {
+                bossEntry.play();
+                bossEntering = true;
+                finalBoss.speedY = 1;
+                bossSpeed = 0;
+            }
+            else if (finalBoss.y == 10 && finalBoss.x == ((screen.width) / 2) - 150 && bossEntering) {
+                finalBoss.speedY = 0;
+                bossSpeed = -4;
+                bossEntering = false;
+            }
+
+            if (finalBoss.active) {
+                if (finalBoss.x <= 300 || finalBoss.x >= 900) {
+                    bossSpeed = -bossSpeed;
+                }
+            }
+
+            if (firstBoss.active) {
+                firstBoss.speedX = bossSpeed;
+                firstBoss.newPos();
+                firstBoss.update();
+            }
+            if (finalBoss.active) {
+                finalBoss.speedX = bossSpeed;
+                finalBoss.newPos();
+                finalBoss.update();
+            }
+            playerBullets.forEach(function (bullet) {
+                if (firstBoss.getHit(bullet)) {
+                    if (bossHits == 9) {
+                        bossDeath.play();
+                        score += 10000;
+                        firstBoss.x = ((screen.width) / 2) - 150;
+                        firstBoss.y = -310;
+                        firstBoss.active = false;
+                        thirdRound = false;
+                        bossHits = -1;
+                        roundNumber = 3;
+                        setTimeout(reload, 5000);
+                        canShoot = false;
+                        setTimeout(enableShoot, 5500);
+                        reloadCalled = true;
+                    }
+                    else {
+                        var hitBoss = new sound("enemy-death.mp3");
+                        hitBoss.play();
+                    }
+                    bossHits += 1;
+                    bullet.active = false;
+                }
+                if (finalBoss.getHit(bullet)) {
+                    if (bossHits == 9) {
+                        bossDeath.play();
+                        score += 10000;
+                        finalBoss.x = ((screen.width) / 2) - 150;
+                        finalBoss.y = -310;
+                        finalBoss.active = false;
+                        finalRound = false;
+                        bossHits = -1;
+                        roundNumber = 0;
+                        setTimeout(reload, 5000);
+                        canShoot = false;
+                        setTimeout(enableShoot, 5500);
+                        reloadCalled = true;
+                    }
+                    else {
+                        var hitBoss = new sound("enemy-death.mp3");
+                        hitBoss.play();
+                    }
+                    bossHits += 1;
+                    bullet.active = false;
+                }
+            });
+            playerBullets = playerBullets.filter(function (bullet) {
+                return bullet.active;
+            });
+            lives.forEach(function (life) {
+                life.update();
+            });
+            if (myGameArea.keys && myGameArea.keys[32] && !isHolding && !bossEntering && canShoot && !reloadCalled && !beenShot) {
+    //            if (firstBoss.active) {
+      //              bossSpeed = -bossSpeed;
+        //        }
+                // code to demonstrate that shoot function technically works while boss is visible
+                shoot(playerCharacter);
+                isHolding = true;
+                canShoot = false;
+                setTimeout(enableShoot, 1000);
+            }
+            if (myGameArea.keys && !myGameArea.keys[32]) {
+                isHolding = false;
+            }
+            if (enemyCanShoot && !beenShot) {
+                attacker = Math.floor(Math.random() * 20);
+                if (attacker > 15) {shoot(enemyCommanders[attacker-16]);}
+                else if (attacker > 7) {shoot(enemyFightersRow1[attacker-8]);}
+                else {shoot(enemyFightersRow2[attacker]);}
+                enemyCanShoot = false;
+                setTimeout(enableEnemyShoot, 3000);
+            }
+            playerBullets.forEach(function (bullet) {
+                if (bullet.y < 0) {
+                    bullet.active = false;
+                };
+                bullet.newPos();
+                bullet.update();
+            });
+            playerBullets = playerBullets.filter(function (bullet) {
+                return bullet.active;
+            });
+            enemyBullets.forEach(function (bullet) {
+                if (bullet.y > screen.height) {
+                    bullet.active = false;
+                }
+                if (playerCharacter.getHit(bullet) && lives.length) {
+                    beenShot = true;
+                    playerDeath.play();
+                    delete playerCharacter;
+                    setTimeout(respawn, 3000);
+                    var life = lives.pop();
+                    delete life;
+                    bullet.active = false;
+                };
+                bullet.newPos();
+                bullet.update();
+            });
+            enemyBullets = enemyBullets.filter(function (bullet) {
+                return bullet.active;
+            });
+            scoreCounter.text = "Score: " + score;
+            scoreCounter.update();
+            if (!(enemyFightersRow1.length) && !(enemyFightersRow2.length) && !(enemyCommanders.length)) {
+                if (roundNumber != 2 && roundNumber != 5 && !reloadCalled) {
+                    setTimeout(reload, 1000);
+                    reloadCalled = true;
+                    canShoot = false;
+                    setTimeout(enableShoot, 500);
+                }
+                else if (roundNumber == 2) {
+                    thirdRound = true;
+                    firstBoss.active = true;
+                }
+                else if (roundNumber == 5) {
+                    finalRound = true;
+                    finalBoss.active = true;
+                }
+            }
+            if (enemyCommanders[0].x <= 200 || enemyCommanders[0].x >= 900) {
+                enemyCommSpeed = -enemyCommSpeed;
+            }
+            enemyCommanders.forEach(function (enemy) {
+                playerBullets.forEach(function (bullet) {
+                    if (enemy.getHit(bullet)) {
+                        if (enemy.hitOnce) {
+                            var secHit = new sound("enemy-death.mp3"); //if the enemy gets hit twice in quick succession, we want the sound to play for both shots
+                            secHit.play();
+                            score += 5000;
+                            enemy.hitOnce = false;
+                            enemy.active = false;
+                        }
+                        else {
+                            enemy.hitOnce = true;
+                            enemy.sound.play();
+                        }
+                        bullet.active = false;
+                    }
+                })
+                playerBullets = playerBullets.filter(function (bullet) {
+                    return bullet.active;
+                });
+                enemy.speedX = enemyCommSpeed;
+                enemy.newPos();
+                enemy.update();
+            });
+            enemyCommanders = enemyCommanders.filter(function (enemy) {
+                return enemy.active;
+            });
+            if (enemyFightersRow1[0].x <= 200 || enemyFightersRow1[0].x >= 800) {
+                enemyRow1Speed = -enemyRow1Speed;
+            }
+            enemyFightersRow1.forEach(function (enemy) {
+                playerBullets.forEach(function (bullet) {
+                    if (enemy.getHit(bullet)) {
+                        score += 1000;
+                        enemy.sound.play();
+                        enemy.active = false;
+                        bullet.active = false;
+                    }
+                })
+                playerBullets = playerBullets.filter(function (bullet) {
+                    return bullet.active;
+                });
+                enemy.speedX = enemyRow1Speed;
+                enemy.newPos();
+                enemy.update();
+            });
+            enemyFightersRow1 = enemyFightersRow1.filter(function (enemy) {
+                return enemy.active;
+            });
+            if (enemyFightersRow2[0].x <= 200 || enemyFightersRow2[0].x >= 800) {
+                enemyRow2Speed = -enemyRow2Speed;
+            }
+            enemyFightersRow2.forEach(function (enemy) {
+                playerBullets.forEach(function (bullet) {
+                    if (enemy.getHit(bullet)) {
+                        score += 1000;
+                        enemy.sound.play();
+                        enemy.active = false;
+                        bullet.active = false;
+                    }
+                })
+                playerBullets = playerBullets.filter(function (bullet) {
+                    return bullet.active;
+                });
+                enemy.speedX = enemyRow2Speed;
+                enemy.newPos();
+                enemy.update();
+            });
+            enemyFightersRow2 = enemyFightersRow2.filter(function (enemy) {
+                return enemy.active;
+            });
+        }
+
+        function shoot(char) {
+            if (char == playerCharacter) {
+                var bullet = new component(15, 60, "player-bullet.png", (char.x) + 43, 595, "", "");
+                bullet.speedY = -10;
+                bullet.sound = new sound("player-shot.mp3");
+                bullet.sound.play();
+                playerBullets.push(bullet);
+            }
+            else {
+                var bullet = new component(15, 60, "enemy-laser.png", (char.x) + 10, char.y, "", "");
+                bullet.speedY = 10;
+                bullet.sound = new sound("player-shot.mp3");
+                bullet.sound.play();
+                enemyBullets.push(bullet);
+            }
+        }
+
+        function enableShoot() {
+            canShoot = true;
+        }
+
+        function enableEnemyShoot() {
+            enemyCanShoot = true;
+        }
+
+        function respawn() {
+            playerCharacter = new component(100, 100, "spaceship.pod_.1.green_.png", ((screen.width) / 2) - 30, 640, "", "");
+            beenShot = false;
+        }
+
+        function reload() {
+            enemyCommanders = [new component(80, 80, "redfighter0006.png", 590, 10, "", ""),
+            new component(80, 80, "redfighter0006.png", 690, 10, "", ""),
+            new component(80, 80, "redfighter0006.png", 790, 10, "", ""),
+            new component(80, 80, "redfighter0006.png", 890, 10, "", "")];
+            enemyCommanders.forEach(function (enemy) {
+                enemy.sound = new sound("enemy-death.mp3");
+            })
+            enemyFightersRow1 = [new component(55, 55, "mship1.png", 530, 100, "", ""),
+            new component(55, 55, "mship1.png", 595, 100, "", ""),
+            new component(55, 55, "mship1.png", 660, 100, "", ""),
+            new component(55, 55, "mship1.png", 725, 100, "", ""),
+            new component(55, 55, "mship1.png", 790, 100, "", ""),
+            new component(55, 55, "mship1.png", 855, 100, "", ""),
+            new component(55, 55, "mship1.png", 920, 100, "", ""),
+            new component(55, 55, "mship1.png", 985, 100, "", "")];
+            enemyFightersRow1.forEach(function (enemy) {
+                enemy.sound = new sound("enemy-death.mp3");
+            })
+            enemyFightersRow2 = [new component(55, 55, "mship1.png", 530, 160, "", ""),
+            new component(55, 55, "mship1.png", 595, 160, "", ""),
+            new component(55, 55, "mship1.png", 660, 160, "", ""),
+            new component(55, 55, "mship1.png", 725, 160, "", ""),
+            new component(55, 55, "mship1.png", 790, 160, "", ""),
+            new component(55, 55, "mship1.png", 855, 160, "", ""),
+            new component(55, 55, "mship1.png", 920, 160, "", ""),
+            new component(55, 55, "mship1.png", 985, 160, "", "")];
+            enemyFightersRow2.forEach(function (enemy) {
+                enemy.sound = new sound("enemy-death.mp3");
+            })
+
+            thirdRound = false;
+            finalRound = false;
+            bossEntering = false;
+            reloadCalled = false;
+            roundNumber += 1;
+        }
+
+        function noscroll() {
+            window.scrollTo(0, 0);
+        }
+
+        function endGame() {
+            
+        }
+    </script>
+</body>
+</html>
